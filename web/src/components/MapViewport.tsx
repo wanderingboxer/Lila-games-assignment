@@ -48,7 +48,8 @@ export function MapViewport(p: Props) {
   } | null>(null);
 
   useEffect(() => {
-    if (p.heatmapMode === "off" || p.heatmapScope !== "global") return;
+    // Cold mode uses the static mapAnalysis.trafficGrid — no per-match aggregation needed.
+    if (p.heatmapMode === "off" || p.heatmapMode === "cold" || p.heatmapScope !== "global") return;
     let cancelled = false;
     const key = `${p.mapId}|${p.filteredMatches.map((m) => m.matchId).join(",")}|${p.heatmapMode}`;
     if (globalAggregate?.key === key) return;

@@ -35,6 +35,73 @@ A few things I built because they make this useful for a Level Designer rather t
 - **Keyboard shortcuts** — `Space` to play/pause, `←/→` to scrub, `[/]` to jump events, `H` to cycle heatmaps, `M` to cycle maps, `P` POIs, `C` storm corridor, `S` to save PNG, `?` for help.
 - **PNG snapshot export** — captures the current map view (heatmap, trails, POIs, all overlays) with a caption strip that says which map, match and heatmap, so designers can paste it into a deck or doc.
 
+## Feature walkthrough
+
+A guided tour of the deployed tool. Each step is something a reviewer (or Level Designer) can do without my help, in this order:
+
+### 1 · Land on the page
+- The left rail shows the **filter stack** (Map → Date → Match), plus toggle chips and the Heatmap selector.
+- The center renders the chosen map's minimap with all selected overlays on a 1024×1024 canvas.
+- The right rail shows match metadata, the **Auto-insights card**, the per-event legend, and global rollups.
+- Default: **AmbroseValley**, all dates, heaviest match auto-selected.
+
+### 2 · Filter to a specific match
+1. Click a map button — the match list refreshes to that map only.
+2. Click a date chip — list narrows further.
+3. Click any match in the list — the right rail repopulates and the canvas redraws.
+4. Sort the list with the dropdown: **Most events / Most kills / Most storm deaths / Longest / Most players** — pick "Most storm deaths" on Lockdown to see the storm-corridor effect.
+5. Use the **search box** to filter by match-id substring.
+
+### 3 · Verify humans vs bots
+- Trails are **warm hues (amber/orange) for humans**, **cool hues (sky/cyan) for bots**.
+- Toggle **Humans** / **Bots** to isolate one side at a time.
+- Bots have **numeric** user-ids (`1429`, `1432`…) shown in the participant list; humans have UUIDs.
+
+### 4 · Inspect events
+- Event markers on the canvas (toggle **Events** off and on to confirm):
+  - 🔶 **Diamond** = kill (red = human, orange = bot)
+  - ❌ **X** = death (dark red = by human, purple = by bot)
+  - ⚡ **Bolt** = killed by storm (pink)
+  - 🟦 **Square** = loot pickup (cyan)
+- Hover the canvas: tooltip shows **live world coordinates** (x, z) — sanity-check coord mapping.
+- Hover a tick on the timeline rail: native browser tooltip shows event type + relative time.
+
+### 5 · Play back the match
+- Click **▶ Play** in the timeline or press **Space**.
+- Speeds: ¼× / ½× / 1× / 2× / 4× (click the speed chip or use no shortcut for it).
+- Press **`[`** / **`]`** to **jump to the previous / next discrete event**.
+- Press **Home** to restart, **End** to jump to the finish.
+- Each colored tick on the rail is an event — color matches the legend.
+
+### 6 · Toggle heatmaps (the headline insight feature)
+Cycle with **H**, or use the buttons:
+- **Off** — clean trails only.
+- **Traffic** — where players move (use **Scope: all filtered** to see the entire map's traffic).
+- **Cold zones** — *inverse* — violet over the parts of the map nobody visits. Toggleable per-map. Try AmbroseValley to immediately see the dead 80% of the map.
+- **Kills / Deaths / Loot / Storm** — separate density layers, each with its own color ramp.
+- Scope: **this match** vs **all filtered** — the latter aggregates up to 400 matches lazily and is what makes the cold-zone and global-pattern views work.
+
+### 7 · Cross-check with overlays
+- **P** toggles **POI labels** — letters A–H mark the top auto-detected event clusters with a caption like `3,252 loot`. AmbroseValley's central funnel is **B**.
+- **C** toggles the **Storm corridor** — the inferred storm push direction, tinted by confidence. Best example: Lockdown (confidence 0.45) shows a clear east-southeast push.
+
+### 8 · Read the Auto-insights card
+For any selected match, the right-rail card reads like a story:
+> *"First loot at 34 ms. First combat at 303 ms. Storm caught a player at 878 ms (failed extraction). Humans moved 1,737 units total. Tight wandering (tightness 0.28) — circling a small area. Loot velocity: 38 pickups/sec — active looting. Combat outcome: 4 kills, 1 death."*
+
+### 9 · Share the exact view
+- Click **🔗 Share** in the header — copies a URL that encodes the **map, date, match, heatmap mode + scope, every toggle, and the playhead timestamp**.
+- Open that URL anywhere: the same view rehydrates.
+
+### 10 · Export a snapshot
+- Click **📸 PNG** in the header (or press **S**).
+- Downloads `lila-<map>-<match>-<heatmap>.png` with a caption strip so the image is self-describing in a deck.
+
+### 11 · Keyboard reference
+Click **? Help** in the header — modal lists every shortcut. Inputs / selects don't hijack keys.
+
+---
+
 ## How to run it locally
 
 ### Prerequisites
@@ -141,6 +208,25 @@ It rewrites `web/public/data/manifest.json` and `web/public/data/matches/*.json`
 - Match `ts` is parquet `timestamp[ms]`. Pandas 3.0 and Pandas 2.x surface
   this differently (`datetime64[ms]` vs `datetime64[ns]`); the ETL coerces
   to `datetime64[ms]` before casting to int — see `pipeline/preprocess.py`.
+
+## Submission checklist (mapped to the assignment)
+
+Every item from the take-home doc's checklist, with where to find it satisfied:
+
+| Assignment item | Where it lives |
+| --- | --- |
+| Load and parse parquet data | `pipeline/preprocess.py` (Python + pyarrow) |
+| Player journeys on correct minimap with proper coord mapping | `web/src/lib/coords.ts` (formula from dataset README); rendered in `MapViewport.tsx` |
+| Humans vs bots distinguished visually | Warm-vs-cool hue split in `web/src/lib/colors.ts :: colorForUser`; trail head sizes differ |
+| Kill, death, loot, storm events as distinct markers | `EVENT_META` in `web/src/lib/colors.ts` (diamond / X / square / bolt) + the in-app **Legend** |
+| Filtering by map / date / match | `web/src/components/ControlPanel.tsx` |
+| Timeline / playback over time | `web/src/components/Timeline.tsx` (play, pause, 0.25×–4×, event ticks) |
+| Heatmaps: kills, deaths, traffic, plus loot, storm, **and cold zones** | `web/src/lib/heatmap.ts`; toggled in `ControlPanel.tsx` |
+| Hosted / shareable URL | Deploy to Vercel using `vercel.json` (step-by-step above); the URL itself encodes shareable state |
+| README with tech stack, setup, env vars | This file |
+| ARCHITECTURE.md (one page): stack+why, data flow, coord mapping, assumptions, tradeoffs | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| 3 insights with evidence, actionable items, why a Level Designer cares | [`INSIGHTS.md`](./INSIGHTS.md) |
+| Walkthrough of all major features | "Feature walkthrough" section above |
 
 ## Credits
 

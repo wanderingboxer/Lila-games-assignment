@@ -18,6 +18,9 @@ __pycache__/
 .venv/
 .python-version
 
+# TS incremental build cache (regenerated on every build)
+web/tsconfig.tsbuildinfo
+
 # OS / editor noise
 .DS_Store
 Thumbs.db

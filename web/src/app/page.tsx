@@ -49,6 +49,9 @@ export default function HomePage() {
   const [toast, setToast] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // Only honor the initial.t (URL-provided playhead) on the *first* match load.
+  // After that, switching matches should reset to the new match's end.
+  const honoredInitialPlayheadRef = useRef(initial.t == null);
 
   // Keep URL in sync.
   useUrlSync({
@@ -107,8 +110,12 @@ export default function HomePage() {
       .then((m) => {
         if (cancelled) return;
         setMatch(m);
-        // Only reset playhead if not bound by URL (keep when sharing deep-links).
-        if (initial.t == null) setPlayheadMs(m.durationMs);
+        // Honor the URL's playhead only on the very first match load.
+        if (honoredInitialPlayheadRef.current) {
+          setPlayheadMs(m.durationMs);
+        } else {
+          honoredInitialPlayheadRef.current = true;
+        }
         setPlaying(false);
       })
       .catch((e) => !cancelled && setError(String(e)))
