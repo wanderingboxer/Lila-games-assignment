@@ -1,0 +1,34 @@
+# Raw dataset (large parquet bundle). Committed JSON outputs of the ETL
+# already live under web/public/data/, which is what the deployed app uses.
+# Re-create data_raw/ locally by unzipping player_data.zip into this folder.
+data_raw/
+
+# Node / Next.js
+web/node_modules/
+web/.next/
+web/out/
+web/.turbo/
+web/.vercel/
+.env*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.python-version
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Build/log artefacts
+*.log
+/tmp_*
+
+# Playwright (used locally for testing, never committed)
+/playwright/
+test-results/

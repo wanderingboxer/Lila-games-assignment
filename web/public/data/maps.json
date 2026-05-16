@@ -1,0 +1,26 @@
+{
+  "AmbroseValley": {
+    "image": "/minimaps/AmbroseValley_Minimap.png",
+    "scale": 900,
+    "originX": -370,
+    "originZ": -473,
+    "size": 1024,
+    "label": "Ambrose Valley"
+  },
+  "GrandRift": {
+    "image": "/minimaps/GrandRift_Minimap.png",
+    "scale": 581,
+    "originX": -290,
+    "originZ": -290,
+    "size": 1024,
+    "label": "Grand Rift"
+  },
+  "Lockdown": {
+    "image": "/minimaps/Lockdown_Minimap.jpg",
+    "scale": 1000,
+    "originX": -500,
+    "originZ": -500,
+    "size": 1024,
+    "label": "Lockdown"
+  }
+}
