@@ -19,7 +19,7 @@ import math
 import os
 import shutil
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -171,6 +171,195 @@ class MatchAccumulator:
             p.loots += 1
 
 
+def compute_pois(
+    points: list[tuple[float, float, str]],  # (x, z, code)
+    *,
+    cell: float = 40.0,
+    min_count: int = 20,
+    max_pois: int = 8,
+    neighbor_radius: int = 2,
+) -> list[dict]:
+    """Auto-detect points-of-interest by gridding then non-maximum-suppression.
+
+    Pure-Python, no numpy/sklearn — keeps the pipeline dependency-light.
+    Returns a list of {x, z, count, dominant} dicts, sorted hottest first.
+    """
+    if not points:
+        return []
+    grid: Counter[tuple[int, int]] = Counter()
+    type_grid: dict[tuple[int, int], Counter[str]] = defaultdict(Counter)
+    for x, z, code in points:
+        cx, cz = int(math.floor(x / cell)), int(math.floor(z / cell))
+        grid[(cx, cz)] += 1
+        type_grid[(cx, cz)][code] += 1
+
+    # Non-maximum suppression: a cell is a POI seed iff it's a strict local max
+    # over a (2*neighbor_radius+1)² window and has at least min_count events.
+    seeds: list[tuple[int, int, int]] = []  # (count, cx, cz)
+    for (cx, cz), c in grid.items():
+        if c < min_count:
+            continue
+        is_max = True
+        for dx in range(-neighbor_radius, neighbor_radius + 1):
+            for dz in range(-neighbor_radius, neighbor_radius + 1):
+                if dx == 0 and dz == 0:
+                    continue
+                if grid.get((cx + dx, cz + dz), 0) > c:
+                    is_max = False
+                    break
+            if not is_max:
+                break
+        if is_max:
+            seeds.append((c, cx, cz))
+
+    seeds.sort(reverse=True)
+    pois: list[dict] = []
+    for c, cx, cz in seeds[:max_pois]:
+        types = type_grid[(cx, cz)]
+        # Roll up nearby cells into the POI so the count reflects the region,
+        # not just the peak cell.
+        region_count = 0
+        region_types: Counter[str] = Counter()
+        cx_sum = 0.0
+        cz_sum = 0.0
+        for dx in range(-neighbor_radius, neighbor_radius + 1):
+            for dz in range(-neighbor_radius, neighbor_radius + 1):
+                k = (cx + dx, cz + dz)
+                if k in grid:
+                    n = grid[k]
+                    region_count += n
+                    region_types.update(type_grid[k])
+                    cx_sum += (k[0] + 0.5) * cell * n
+                    cz_sum += (k[1] + 0.5) * cell * n
+        if region_count == 0:
+            continue
+        wx = cx_sum / region_count
+        wz = cz_sum / region_count
+        dominant = region_types.most_common(1)[0][0]
+        pois.append({
+            "x": round(wx, 1),
+            "z": round(wz, 1),
+            "count": region_count,
+            "dominant": dominant,
+            "breakdown": dict(region_types),
+        })
+    return pois
+
+
+def infer_storm_direction(
+    storm_positions: list[tuple[float, float]],
+    flee_vectors: list[tuple[float, float]],
+) -> dict | None:
+    """Estimate the storm's sweep direction.
+
+    Players flee away from the storm front, so the average flee direction is
+    opposite the storm push. We average normalised flee vectors, then flip
+    that to get the storm push direction. The corridor's perpendicular axis
+    + the centroid of storm-death positions gives us a band to render on the
+    map.
+    """
+    if not flee_vectors:
+        return None
+    fx = 0.0
+    fz = 0.0
+    used = 0
+    for vx, vz in flee_vectors:
+        n = math.hypot(vx, vz)
+        if n < 1e-3:
+            continue
+        fx += vx / n
+        fz += vz / n
+        used += 1
+    if used == 0:
+        return None
+    fx /= used
+    fz /= used
+    # storm pushes opposite to flee.
+    sx, sz = -fx, -fz
+    sn = math.hypot(sx, sz)
+    if sn < 1e-3:
+        return None
+    sx /= sn
+    sz /= sn
+    # centroid of storm-death positions = a point inside the corridor.
+    if storm_positions:
+        cx = sum(p[0] for p in storm_positions) / len(storm_positions)
+        cz = sum(p[1] for p in storm_positions) / len(storm_positions)
+    else:
+        cx = 0.0
+        cz = 0.0
+    # "Confidence" = magnitude of averaged unit flee vector (0..1). High when
+    # flees agree on a direction; low when they're scattered.
+    confidence = round(math.hypot(fx, fz), 3)
+    return {
+        "dirX": round(sx, 3),
+        "dirZ": round(sz, 3),
+        "centerX": round(cx, 1),
+        "centerZ": round(cz, 1),
+        "sampleSize": used,
+        "confidence": confidence,
+    }
+
+
+def build_match_insights(
+    *,
+    duration_ms: int,
+    events: list[list],
+    trails: dict[str, list[list]],
+    participants: dict[str, dict],
+) -> dict:
+    """Compact, human-readable derivations off a single match."""
+
+    def first_event(codes: set[str]) -> int | None:
+        for t, _uid, code, _x, _z in events:
+            if code in codes:
+                return t
+        return None
+
+    first_loot = first_event({"L"})
+    first_combat = first_event({"K", "BK", "KD", "BKD"})
+    first_storm = first_event({"S"})
+
+    # Total distance traveled per human, max + sum.
+    total_distance = 0.0
+    longest_human = 0.0
+    busiest_human: str | None = None
+    for uid, trail in trails.items():
+        p = participants.get(uid)
+        if not p or p.get("isBot"):
+            continue
+        d = 0.0
+        for i in range(1, len(trail)):
+            dx = trail[i][1] - trail[i - 1][1]
+            dz = trail[i][2] - trail[i - 1][2]
+            d += math.hypot(dx, dz)
+        total_distance += d
+        if d > longest_human:
+            longest_human = d
+            busiest_human = uid
+
+    # Compute "wander tightness": ratio of bounding-box diagonal to total dist.
+    # Small ratio = wandered a lot in a small area; high = went in a straight line.
+    tightness = None
+    if busiest_human and busiest_human in trails:
+        trail = trails[busiest_human]
+        if len(trail) >= 2:
+            xs = [p[1] for p in trail]
+            zs = [p[2] for p in trail]
+            bbox_diag = math.hypot(max(xs) - min(xs), max(zs) - min(zs))
+            if longest_human > 1:
+                tightness = round(bbox_diag / longest_human, 2)
+
+    return {
+        "firstLootMs": first_loot,
+        "firstCombatMs": first_combat,
+        "firstStormMs": first_storm,
+        "totalHumanDistance": round(total_distance, 1),
+        "longestHumanDistance": round(longest_human, 1),
+        "tightness": tightness,  # bbox diag / total distance: ~1 = straight line, ~0 = circling
+    }
+
+
 def downsample_trail(points: list[tuple[int, float, float]]) -> list[tuple[int, float, float]]:
     """Decimate by minimum time delta and minimum spatial movement.
 
@@ -286,6 +475,13 @@ def build():
                 shutil.copy2(f, out_path)
                 print(f"[lila] copied minimap {f.name} (Pillow missing → no resize)")
 
+    # Per-map aggregates → used for cold-zone overlay, POI labels, storm dir.
+    map_event_points: dict[str, list[tuple[float, float, str]]] = defaultdict(list)
+    map_traffic_cells: dict[str, Counter[tuple[int, int]]] = defaultdict(Counter)
+    map_storm_positions: dict[str, list[tuple[float, float]]] = defaultdict(list)
+    map_storm_flees: dict[str, list[tuple[float, float]]] = defaultdict(list)
+    TRAFFIC_CELL = 32.0  # world units per cell for cold-zone grid
+
     # Write per-match JSONs + manifest.
     manifest_matches = []
     for mid, m in matches.items():
@@ -313,6 +509,39 @@ def build():
             if pd["lastTs"] is not None:
                 pd["lastTs"] -= start
 
+        # ---- Map-level aggregates (for cold-zones, POIs, storm inference) ----
+        for trail in trails_out.values():
+            for _, x, z in trail:
+                map_traffic_cells[m.map_id][(int(x // TRAFFIC_CELL), int(z // TRAFFIC_CELL))] += 1
+        for _, _, code, x, z in events_out:
+            if code in ("K", "BK", "KD", "BKD", "L", "S"):
+                map_event_points[m.map_id].append((x, z, code))
+            if code == "S":
+                map_storm_positions[m.map_id].append((x, z))
+                # Find the human trail this storm death sits on and grab the
+                # flee direction = last two points before the storm death.
+                for uid, trail in trails_out.items():
+                    if len(trail) < 2:
+                        continue
+                    # Only consider human players for flee inference.
+                    pinfo = participants.get(uid)
+                    if not pinfo or pinfo.get("isBot"):
+                        continue
+                    last = trail[-1]
+                    if math.hypot(last[1] - x, last[2] - z) < 30:
+                        dvx = trail[-1][1] - trail[-2][1]
+                        dvz = trail[-1][2] - trail[-2][2]
+                        map_storm_flees[m.map_id].append((dvx, dvz))
+                        break
+
+        # ---- Per-match auto-insights ----
+        auto = build_match_insights(
+            duration_ms=duration_ms,
+            events=events_out,
+            trails=trails_out,
+            participants=participants,
+        )
+
         match_doc = {
             "matchId": mid,
             "mapId": m.map_id,
@@ -321,6 +550,7 @@ def build():
             "participants": participants,
             "events": events_out,
             "trails": trails_out,
+            "autoInsights": auto,
         }
 
         with open(MATCHES_OUT / f"{mid}.json", "w") as fh:
@@ -348,6 +578,42 @@ def build():
             "trailPointCount": sum(len(v) for v in m.trails.values()),
         })
 
+    # ---- Per-map analysis: POIs, cold zones, storm direction. ----
+    map_analysis: dict[str, dict] = {}
+    for map_id, cfg in MAP_CONFIG.items():
+        pois = compute_pois(map_event_points.get(map_id, []))
+        storm = infer_storm_direction(
+            map_storm_positions.get(map_id, []),
+            map_storm_flees.get(map_id, []),
+        )
+        # Coverage stats and a compact traffic grid for cold-zone overlay.
+        # We snapshot the grid as a small JSON array to avoid hauling per-trail
+        # data into the client just to compute negative space.
+        traffic = map_traffic_cells.get(map_id, Counter())
+        grid_cells = [
+            {"x": cx * TRAFFIC_CELL, "z": cz * TRAFFIC_CELL, "count": c}
+            for (cx, cz), c in traffic.items()
+        ]
+        # Bounding box of all visited cells = the implicit playable region.
+        if traffic:
+            xs = [cx for cx, _ in traffic.keys()]
+            zs = [cz for _, cz in traffic.keys()]
+            bbox = {
+                "minX": min(xs) * TRAFFIC_CELL,
+                "maxX": (max(xs) + 1) * TRAFFIC_CELL,
+                "minZ": min(zs) * TRAFFIC_CELL,
+                "maxZ": (max(zs) + 1) * TRAFFIC_CELL,
+            }
+        else:
+            bbox = None
+        map_analysis[map_id] = {
+            "pois": pois,
+            "storm": storm,
+            "trafficCell": TRAFFIC_CELL,
+            "trafficGrid": grid_cells,
+            "playableBbox": bbox,
+        }
+
     # Sort matches by date desc, then duration desc, for nice default UI ordering.
     manifest_matches.sort(key=lambda r: (r["date"], -r["durationMs"], r["matchId"]))
 
@@ -367,6 +633,7 @@ def build():
             "trailPoints": sum(r["trailPointCount"] for r in manifest_matches),
         },
         "eventCodes": EVENT_CODE,
+        "mapAnalysis": map_analysis,
         "matches": manifest_matches,
     }
 

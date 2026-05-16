@@ -94,6 +94,18 @@ The `pixelToWorld` inverse is also in `coords.ts` and powers the hover tooltip (
 | **Default match selection** | First in list / random / heaviest | **Heaviest** (most events, then longest) | Lands the user on something visually interesting, not an empty match. |
 | **Where heatmap data lives** | Always per-match / always global / both | **Both, user-toggleable** | Per-match shows the story of one game. "All filtered" is what answers the level-design question "where on this map does X actually happen". |
 
+## Beyond-the-spec features (and how they work)
+
+| Feature | Where it lives | How it works in one sentence |
+| --- | --- | --- |
+| **Cold-zones overlay** | `MapViewport.tsx` + `mapAnalysis.trafficGrid` in manifest | Paint a violet wash over the playable bbox, then `destination-out` punch holes at every cell with traffic — what remains is dead space. |
+| **Auto-POI detection** | `pipeline/preprocess.py :: compute_pois()` | Pure-Python grid + non-maximum suppression over event positions per map, keeps top-N seeds, rolls neighbours into a labelled region with a dominant event type. |
+| **Storm-corridor inference** | `pipeline/preprocess.py :: infer_storm_direction()` | For every human storm-death, take the player's last velocity vector (= flee direction). Average normalised flees, invert → storm push direction. Confidence = magnitude of the averaged unit vectors (low when flees disagree). |
+| **Per-match auto-insights** | `pipeline/preprocess.py :: build_match_insights()` + `components/AutoInsights.tsx` | First-event timestamps, total human distance via path-length on trails, tightness = bbox-diagonal ÷ total distance. Frontend turns these into narrative bullets. |
+| **Shareable deep-link URLs** | `lib/url-state.ts` | Throttled `replaceState` writes a small `?m=…&hm=…&t=…` query string; on mount, `readUrlState()` rehydrates every UI control. |
+| **Keyboard shortcuts** | `lib/keyboard.ts` + `components/HelpOverlay.tsx` | Single `keydown` listener with sensible no-hijack on input focus. `?` opens a modal listing all bindings. |
+| **PNG snapshot export** | `page.tsx :: snapshot()` | Composes the live `<canvas>` with a caption strip (map name + match id + heatmap mode) into a new canvas, then `toBlob()` → download. |
+
 ## What would change at scale
 
 If the dataset grew 10×:

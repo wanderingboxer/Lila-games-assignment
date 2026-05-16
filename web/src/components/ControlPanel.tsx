@@ -25,6 +25,10 @@ interface Props {
   setHeatmapMode: (m: HeatmapMode) => void;
   heatmapScope: "match" | "global";
   setHeatmapScope: (s: "match" | "global") => void;
+  showPOIs: boolean;
+  setShowPOIs: (v: boolean) => void;
+  showStorm: boolean;
+  setShowStorm: (v: boolean) => void;
 }
 
 type SortKey = "events" | "kills" | "stormDeaths" | "duration" | "players";
@@ -122,6 +126,8 @@ export function ControlPanel(p: Props) {
           <Toggle label="Events" value={p.showEvents} on={p.setShowEvents} />
           <Toggle label="Humans" value={p.showHumans} on={p.setShowHumans} />
           <Toggle label="Bots" value={p.showBots} on={p.setShowBots} />
+          <Toggle label="POI labels" value={p.showPOIs} on={p.setShowPOIs} />
+          <Toggle label="Storm corridor" value={p.showStorm} on={p.setShowStorm} />
         </div>
 
         <div>
@@ -133,6 +139,7 @@ export function ControlPanel(p: Props) {
               [
                 ["off", "Off"],
                 ["traffic", "Traffic"],
+                ["cold", "Cold zones"],
                 ["kills", "Kills"],
                 ["deaths", "Deaths"],
                 ["loot", "Loot"],

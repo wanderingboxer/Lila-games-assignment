@@ -20,13 +20,17 @@ interface Props {
   heatmapScope: "match" | "global";
   playheadMs: number;
   filteredMatches: ManifestMatch[];
+  showPOIs: boolean;
+  showStorm: boolean;
+  canvasRef?: React.MutableRefObject<HTMLCanvasElement | null>;
 }
 
 const RENDER_SIZE = 1024;
 
 export function MapViewport(p: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const internalCanvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = p.canvasRef ?? internalCanvasRef;
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [hover, setHover] = useState<{ x: number; z: number; pxOnScreen: { left: number; top: number } } | null>(
     null,
@@ -57,6 +61,7 @@ export function MapViewport(p: Props) {
       const acc: Record<HeatmapMode, Array<[number, number]>> = {
         off: [],
         traffic: [],
+        cold: [],
         kills: [],
         deaths: [],
         loot: [],
@@ -129,8 +134,38 @@ export function MapViewport(p: Props) {
     ctx.fillStyle = "rgba(7,9,13,0.30)";
     ctx.fillRect(0, 0, RENDER_SIZE, RENDER_SIZE);
 
-    // --- Heatmap layer ---
-    if (p.heatmapMode !== "off") {
+    // --- Cold-zones overlay ---
+    // Mask the map with a translucent fill, then "cut holes" at cells with traffic.
+    // What remains painted = areas of the map nobody visited.
+    if (p.heatmapMode === "cold") {
+      const analysis = p.manifest.mapAnalysis?.[p.mapId];
+      if (analysis && analysis.playableBbox) {
+        const cellSize = analysis.trafficCell;
+        ctx.save();
+        // Paint a violet tint over the entire playable bbox.
+        const bbox = analysis.playableBbox;
+        const tl = worldToPixel(bbox.minX, bbox.maxZ, mapCfg, RENDER_SIZE);
+        const br = worldToPixel(bbox.maxX, bbox.minZ, mapCfg, RENDER_SIZE);
+        ctx.fillStyle = "rgba(99, 102, 241, 0.36)";
+        ctx.fillRect(
+          Math.min(tl.px, br.px),
+          Math.min(tl.py, br.py),
+          Math.abs(br.px - tl.px),
+          Math.abs(br.py - tl.py),
+        );
+        // Cut out each visited cell. Scale the cell to render units.
+        const cellW = (cellSize / mapCfg.scale) * RENDER_SIZE;
+        ctx.globalCompositeOperation = "destination-out";
+        // Visited cells: paint a softer falloff for hotter cells (more confidently "warm").
+        for (const cell of analysis.trafficGrid) {
+          const top = worldToPixel(cell.x, cell.z + cellSize, mapCfg, RENDER_SIZE);
+          const alpha = Math.min(1, 0.4 + Math.log10(cell.count + 1) * 0.4);
+          ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+          ctx.fillRect(top.px, top.py, cellW, cellW);
+        }
+        ctx.restore();
+      }
+    } else if (p.heatmapMode !== "off") {
       let pts: Array<[number, number]> = [];
       let ramp = RAMP_HEAT;
       if (p.heatmapScope === "match" && p.match) {
@@ -227,6 +262,65 @@ export function MapViewport(p: Props) {
       }
     }
 
+    // --- Storm corridor overlay ---
+    if (p.showStorm) {
+      const analysis = p.manifest.mapAnalysis?.[p.mapId];
+      const storm = analysis?.storm ?? null;
+      if (storm && storm.confidence > 0) {
+        const cx = storm.centerX;
+        const cz = storm.centerZ;
+        // Storm push direction (unit vector).
+        const dx = storm.dirX;
+        const dz = storm.dirZ;
+        // Perpendicular (turn 90°): (−dz, dx).
+        const px_ = -dz;
+        const pz_ = dx;
+        // Build a long band along the perpendicular, swept along ±dir from center.
+        const half = mapCfg.scale * 0.55;
+        const width = mapCfg.scale * (0.06 + storm.confidence * 0.08);
+        const a = worldToPixel(cx + px_ * half - dx * width, cz + pz_ * half - dz * width, mapCfg, RENDER_SIZE);
+        const b = worldToPixel(cx - px_ * half - dx * width, cz - pz_ * half - dz * width, mapCfg, RENDER_SIZE);
+        const c = worldToPixel(cx - px_ * half + dx * width, cz - pz_ * half + dz * width, mapCfg, RENDER_SIZE);
+        const d = worldToPixel(cx + px_ * half + dx * width, cz + pz_ * half + dz * width, mapCfg, RENDER_SIZE);
+        ctx.save();
+        ctx.fillStyle = `rgba(236, 72, 153, ${0.10 + storm.confidence * 0.20})`;
+        ctx.strokeStyle = `rgba(236, 72, 153, ${0.45 + storm.confidence * 0.4})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(a.px, a.py);
+        ctx.lineTo(b.px, b.py);
+        ctx.lineTo(c.px, c.py);
+        ctx.lineTo(d.px, d.py);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Arrow from corridor center indicating push direction.
+        const arrLen = mapCfg.scale * 0.18;
+        const fromW = { x: cx - dx * arrLen, z: cz - dz * arrLen };
+        const toW = { x: cx + dx * arrLen, z: cz + dz * arrLen };
+        const from = worldToPixel(fromW.x, fromW.z, mapCfg, RENDER_SIZE);
+        const to = worldToPixel(toW.x, toW.z, mapCfg, RENDER_SIZE);
+        ctx.strokeStyle = "rgba(236, 72, 153, 0.95)";
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(from.px, from.py);
+        ctx.lineTo(to.px, to.py);
+        ctx.stroke();
+        // Arrow head — pointer triangle at the "to" end.
+        const ang = Math.atan2(to.py - from.py, to.px - from.px);
+        const ah = 10;
+        ctx.beginPath();
+        ctx.moveTo(to.px, to.py);
+        ctx.lineTo(to.px - ah * Math.cos(ang - Math.PI / 6), to.py - ah * Math.sin(ang - Math.PI / 6));
+        ctx.lineTo(to.px - ah * Math.cos(ang + Math.PI / 6), to.py - ah * Math.sin(ang + Math.PI / 6));
+        ctx.closePath();
+        ctx.fillStyle = "rgba(236, 72, 153, 0.95)";
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
     // --- Events ---
     if (p.match && p.showEvents) {
       for (const [ts, uid, code, x, z] of p.match.events) {
@@ -239,9 +333,46 @@ export function MapViewport(p: Props) {
         drawEventMarker(ctx, px, py, code);
       }
     }
+
+    // --- POI labels (always drawn on top of everything) ---
+    if (p.showPOIs) {
+      const analysis = p.manifest.mapAnalysis?.[p.mapId];
+      const pois = analysis?.pois ?? [];
+      pois.forEach((poi, idx) => {
+        const name = `${String.fromCharCode(65 + idx)}`;
+        const { px, py } = worldToPixel(poi.x, poi.z, mapCfg, RENDER_SIZE);
+        ctx.save();
+        // Ring
+        ctx.strokeStyle = "rgba(250, 204, 21, 0.85)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(px, py, 14, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(7, 9, 13, 0.85)";
+        ctx.beginPath();
+        ctx.arc(px, py, 13, 0, Math.PI * 2);
+        ctx.fill();
+        // Letter inside
+        ctx.fillStyle = "#facc15";
+        ctx.font = "700 16px ui-monospace, monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(name, px, py + 1);
+        // Caption underneath: dominant type + count
+        const caption = `${poi.count.toLocaleString()} ${poi.dominant === "L" ? "loot" : poi.dominant === "BK" ? "bot-kills" : poi.dominant === "BKD" ? "deaths" : poi.dominant === "S" ? "storm" : "events"}`;
+        ctx.font = "500 11px Inter, system-ui";
+        ctx.fillStyle = "rgba(7,9,13,0.85)";
+        const w = ctx.measureText(caption).width + 8;
+        ctx.fillRect(px - w / 2, py + 18, w, 14);
+        ctx.fillStyle = "#fde68a";
+        ctx.fillText(caption, px, py + 27);
+        ctx.restore();
+      });
+    }
   }, [
     imgReady,
     mapCfg,
+    p.mapId,
     p.match,
     p.showHumans,
     p.showBots,
@@ -250,6 +381,9 @@ export function MapViewport(p: Props) {
     p.heatmapMode,
     p.heatmapScope,
     p.playheadMs,
+    p.showPOIs,
+    p.showStorm,
+    p.manifest.mapAnalysis,
     globalAggregate,
   ]);
 

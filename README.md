@@ -14,6 +14,7 @@
 
 Open a match on any of the three maps and you get:
 
+### Core
 - **The right minimap** with **world coordinates correctly projected** onto the 1024 × 1024 image (see [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the math).
 - **Per-player journey trails** drawn live, color-coded per player. Humans use warm hues (amber/orange); **bots use cool hues (sky/cyan)** so you can tell them apart at a glance.
 - **Event markers** for every discrete event — diamonds for kills, X-marks for deaths, bolts for storm deaths, squares for loot — each in a distinct color (see in-app **Legend** panel).
@@ -21,6 +22,18 @@ Open a match on any of the three maps and you get:
 - A **timeline scrubber** with **play / pause / speed (¼× → 4×)** so you can watch a match unfold over time. The scrubber rail shows every discrete event as a colored tick.
 - **Heatmaps** for **Traffic / Kills / Deaths / Loot / Storm**, scoped either to the **current match** or to **all filtered matches on the selected map** (the global scope lets a designer see where the *whole* map gets used).
 - A **Stats panel** with per-match KPIs, a sortable **Participants** list, and a chronological **Event log**.
+
+### Beyond the requirements
+
+A few things I built because they make this useful for a Level Designer rather than just a tech demo:
+
+- **Cold-zones overlay** — the *inverse* of the traffic heatmap. Shows the parts of the map that **no one ever visits**, which is what a Level Designer actually needs to find dead content. Toggleable under **Heatmap → Cold zones**.
+- **Auto-detected POIs** — clusters every map's events into the top hotspots and labels them **A, B, C…** on the minimap with a per-POI caption (`1,335 loot`, `488 bot-kills`, etc.). Toggleable with **P**.
+- **Storm-corridor inference** — derives the storm's sweep direction from human flee vectors at storm-death moments, then renders the inferred corridor + push arrow on the minimap with a confidence-scaled tint. Toggleable with **C**. Pure data-derived; not in the parquet.
+- **Per-match auto-insights** — every match summarises itself: first-loot time, first-combat time, total human distance traveled, motion tightness ratio (straight push vs circling), loot velocity, combat outcome.
+- **Shareable deep-link URLs** — every filter, toggle, heatmap mode, and even the timeline playhead position is serialised into the URL. Copy the address bar and you've sent the exact view you're looking at to a teammate.
+- **Keyboard shortcuts** — `Space` to play/pause, `←/→` to scrub, `[/]` to jump events, `H` to cycle heatmaps, `M` to cycle maps, `P` POIs, `C` storm corridor, `S` to save PNG, `?` for help.
+- **PNG snapshot export** — captures the current map view (heatmap, trails, POIs, all overlays) with a caption strip that says which map, match and heatmap, so designers can paste it into a deck or doc.
 
 ## How to run it locally
 

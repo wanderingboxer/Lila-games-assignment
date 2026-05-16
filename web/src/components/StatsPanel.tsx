@@ -5,7 +5,13 @@ import type { MatchData } from "@/lib/types";
 import { fmtMs } from "@/lib/data";
 import { EVENT_META, colorForUser } from "@/lib/colors";
 
-export function StatsPanel({ match }: { match: MatchData | null }) {
+export function StatsPanel({
+  match,
+  extraTop,
+}: {
+  match: MatchData | null;
+  extraTop?: React.ReactNode;
+}) {
   const counts = useMemo(() => {
     if (!match) return null;
     let humans = 0,
@@ -47,6 +53,8 @@ export function StatsPanel({ match }: { match: MatchData | null }) {
           {match.date} · {match.mapId} · {fmtMs(match.durationMs)}
         </div>
       </div>
+
+      {extraTop ? <div className="mb-3">{extraTop}</div> : null}
 
       {counts && (
         <div className="mb-4 grid grid-cols-2 gap-1.5 text-[11px]">
