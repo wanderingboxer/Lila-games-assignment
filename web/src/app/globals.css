@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: "Inter", "system-ui", "-apple-system", sans-serif;
+  --font-mono: "JetBrains Mono", "ui-monospace", monospace;
+}
+
+html,
+body {
+  background: #07090d;
+  color: #e5e7eb;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Slim, themed scrollbars (Chromium/WebKit). */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #222936;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4252;
+}
+
+/* Subtle vignette / radial glow under map */
+.map-vignette::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
+  pointer-events: none;
+}
+
+.checker-bg {
+  background-image: linear-gradient(45deg, #0c0f15 25%, transparent 25%),
+    linear-gradient(-45deg, #0c0f15 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #0c0f15 75%),
+    linear-gradient(-45deg, transparent 75%, #0c0f15 75%);
+  background-size: 24px 24px;
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0px;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: #222936;
+  border-radius: 4px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: #facc15;
+  margin-top: -5px;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.18);
+}
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  background: #222936;
+  border-radius: 4px;
+}
+input[type="range"]::-moz-range-thumb {
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: #facc15;
+  border: none;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.18);
+}
