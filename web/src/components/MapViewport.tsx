@@ -118,14 +118,21 @@ export function MapViewport(p: Props) {
       console.log("[lila/debug] render skipped: no 2d ctx");
       return;
     }
+    const parent = c.parentElement;
+    const grandparent = parent?.parentElement;
     // eslint-disable-next-line no-console
-    console.log("[lila/debug] render running:", {
-      canvasInternal: { w: c.width, h: c.height },
-      canvasCss: { w: c.offsetWidth, h: c.offsetHeight },
-      mapCfg: { id: p.mapId, scale: mapCfg.scale, image: mapCfg.image },
+    console.log(
+      "[lila/debug] sizes — canvas",
+      c.offsetWidth + "x" + c.offsetHeight,
+      "internal",
+      c.width + "x" + c.height,
+      "parent",
+      parent?.offsetWidth + "x" + parent?.offsetHeight,
+      "grandparent",
+      grandparent?.offsetWidth + "x" + grandparent?.offsetHeight,
+      "imgReady",
       imgReady,
-      hasImg: !!imgRef.current,
-    });
+    );
     ctx.clearRect(0, 0, RENDER_SIZE, RENDER_SIZE);
 
     // DEBUG: always paint a visible test pattern BEFORE the real render
@@ -445,12 +452,20 @@ export function MapViewport(p: Props) {
       className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg map-vignette"
     >
       <div className="checker-bg absolute inset-0 opacity-30" />
-      <div className="relative" style={{ width: "min(100%, 92vh)", aspectRatio: "1 / 1" }}>
+      <div
+        className="relative"
+        style={{
+          width: "min(100%, 92vh)",
+          aspectRatio: "1 / 1",
+          outline: "3px solid magenta", // DEBUG: visible border around inner box
+        }}
+      >
         <canvas
           ref={canvasRef}
           width={RENDER_SIZE}
           height={RENDER_SIZE}
           className="absolute inset-0 h-full w-full rounded-md shadow-2xl"
+          style={{ background: "lime" }} // DEBUG: bright background on the canvas itself
           onMouseMove={onMove}
           onMouseLeave={() => setHover(null)}
         />
