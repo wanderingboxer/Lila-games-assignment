@@ -106,10 +106,43 @@ export function MapViewport(p: Props) {
   // ---- Main render ----
   useEffect(() => {
     const c = canvasRef.current;
-    if (!c || !mapCfg) return;
+    if (!c || !mapCfg) {
+      // DEBUG: log so we can see why the render didn't run.
+      // eslint-disable-next-line no-console
+      console.log("[lila/debug] render skipped:", { canvas: !!c, mapCfg: !!mapCfg });
+      return;
+    }
     const ctx = c.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      // eslint-disable-next-line no-console
+      console.log("[lila/debug] render skipped: no 2d ctx");
+      return;
+    }
+    // eslint-disable-next-line no-console
+    console.log("[lila/debug] render running:", {
+      canvasInternal: { w: c.width, h: c.height },
+      canvasCss: { w: c.offsetWidth, h: c.offsetHeight },
+      mapCfg: { id: p.mapId, scale: mapCfg.scale, image: mapCfg.image },
+      imgReady,
+      hasImg: !!imgRef.current,
+    });
     ctx.clearRect(0, 0, RENDER_SIZE, RENDER_SIZE);
+
+    // DEBUG: always paint a visible test pattern BEFORE the real render
+    // so we know the canvas itself is alive and sized. Remove once we're done.
+    ctx.fillStyle = "rgba(255, 0, 80, 0.4)";
+    ctx.fillRect(0, 0, RENDER_SIZE, RENDER_SIZE);
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 64px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("CANVAS OK", RENDER_SIZE / 2, RENDER_SIZE / 2);
+    ctx.font = "24px sans-serif";
+    ctx.fillText(
+      `${c.offsetWidth}×${c.offsetHeight} (display) · img:${imgReady ? "yes" : "no"}`,
+      RENDER_SIZE / 2,
+      RENDER_SIZE / 2 + 50,
+    );
 
     if (imgRef.current && imgReady) {
       ctx.drawImage(imgRef.current, 0, 0, RENDER_SIZE, RENDER_SIZE);
