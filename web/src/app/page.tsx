@@ -302,8 +302,11 @@ export default function HomePage() {
         onHelp={() => setHelpOpen(true)}
       />
       <div className="flex flex-1 min-h-0 flex-col md:flex-row">
-        {/* Left aside: filters. Below the map on mobile, beside it on desktop. */}
-        <aside className="order-2 w-full shrink-0 border-t border-ink-700 bg-ink-900 md:order-1 md:flex md:w-[320px] md:flex-col md:border-r md:border-t-0">
+        {/* Left aside: filters. Below the map on mobile, beside it on desktop.
+            md:overflow-hidden + md:min-h-0 prevent the ControlPanel's match
+            list (hundreds of items) from forcing the entire flex-row layout
+            to stretch vertically. The internal ul still scrolls. */}
+        <aside className="order-2 w-full shrink-0 border-t border-ink-700 bg-ink-900 md:order-1 md:flex md:min-h-0 md:w-[320px] md:flex-col md:overflow-hidden md:border-r md:border-t-0">
           <ControlPanel
             manifest={manifest}
             mapId={mapId}
