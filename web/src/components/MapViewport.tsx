@@ -412,10 +412,7 @@ export function MapViewport(p: Props) {
       className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg map-vignette"
     >
       <div className="checker-bg absolute inset-0 opacity-30" />
-      <div
-        className="relative h-full w-full max-h-full"
-        style={{ maxWidth: "min(100%, 92vh)", aspectRatio: "1 / 1" }}
-      >
+      <div className="relative" style={{ width: "min(100%, 92vh)", aspectRatio: "1 / 1" }}>
         <canvas
           ref={canvasRef}
           width={RENDER_SIZE}
