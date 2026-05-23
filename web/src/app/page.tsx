@@ -291,7 +291,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col">
+    <main className="flex min-h-screen flex-col bg-ink-950">
       <HeaderBar
         manifest={manifest}
         onShareCopy={() => {
@@ -301,8 +301,9 @@ export default function HomePage() {
         onSnapshot={snapshot}
         onHelp={() => setHelpOpen(true)}
       />
-      <div className="flex flex-1 min-h-0">
-        <aside className="hidden w-[320px] shrink-0 border-r border-ink-700 bg-ink-900 md:flex md:flex-col">
+      <div className="flex flex-1 min-h-0 flex-col md:flex-row">
+        {/* Left aside: filters. Below the map on mobile, beside it on desktop. */}
+        <aside className="order-2 w-full shrink-0 border-t border-ink-700 bg-ink-900 md:order-1 md:flex md:w-[320px] md:flex-col md:border-r md:border-t-0">
           <ControlPanel
             manifest={manifest}
             mapId={mapId}
@@ -330,8 +331,9 @@ export default function HomePage() {
             setShowStorm={setShowStorm}
           />
         </aside>
-        <section className="relative flex flex-1 flex-col min-h-0">
-          <div className="relative flex flex-1 items-center justify-center bg-ink-950 p-4 min-h-0">
+        {/* Center: map + timeline. Square on mobile, fills remaining space on desktop. */}
+        <section className="relative order-1 flex flex-col min-h-0 md:order-2 md:flex-1">
+          <div className="relative flex aspect-square w-full items-center justify-center bg-ink-950 p-2 md:aspect-auto md:flex-1 md:min-h-0 md:p-4">
             <MapViewport
               manifest={manifest}
               mapId={mapId}
@@ -365,8 +367,9 @@ export default function HomePage() {
             setPlaySpeed={setPlaySpeed}
           />
         </section>
-        <aside className="hidden w-[320px] shrink-0 flex-col border-l border-ink-700 bg-ink-900 lg:flex overflow-hidden">
-          <div className="flex-1 overflow-auto">
+        {/* Right aside: match stats. Below filters on mobile, beside map on desktop. */}
+        <aside className="order-3 flex w-full shrink-0 flex-col border-t border-ink-700 bg-ink-900 lg:w-[320px] lg:border-l lg:border-t-0 lg:overflow-hidden">
+          <div className="lg:flex-1 lg:overflow-auto">
             <StatsPanel match={match} extraTop={<AutoInsights match={match} />} />
           </div>
           <div className="border-t border-ink-700 p-4">
