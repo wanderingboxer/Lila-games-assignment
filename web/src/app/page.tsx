@@ -291,7 +291,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-ink-950">
+    <main className="flex min-h-screen flex-col bg-ink-950 md:h-screen md:min-h-0 md:overflow-hidden">
       <HeaderBar
         manifest={manifest}
         onShareCopy={() => {
@@ -301,11 +301,8 @@ export default function HomePage() {
         onSnapshot={snapshot}
         onHelp={() => setHelpOpen(true)}
       />
-      <div className="flex flex-1 min-h-0 flex-col md:flex-row">
-        {/* Left aside: filters. Below the map on mobile, beside it on desktop.
-            md:overflow-hidden + md:min-h-0 prevent the ControlPanel's match
-            list (hundreds of items) from forcing the entire flex-row layout
-            to stretch vertically. The internal ul still scrolls. */}
+      <div className="flex flex-1 min-h-0 flex-col md:flex-row md:overflow-hidden">
+        {/* Left aside: filters. Below the map on mobile, beside it on desktop. */}
         <aside className="order-2 w-full shrink-0 border-t border-ink-700 bg-ink-900 md:order-1 md:flex md:min-h-0 md:w-[320px] md:flex-col md:overflow-hidden md:border-r md:border-t-0">
           <ControlPanel
             manifest={manifest}
@@ -335,11 +332,8 @@ export default function HomePage() {
           />
         </aside>
         {/* Center: map + timeline. Square on mobile, fills remaining space on desktop. */}
-        <section className="relative order-1 flex flex-col min-h-0 md:order-2 md:flex-1">
-          <div
-            className="relative flex aspect-square w-full items-center justify-center bg-ink-950 p-2 md:aspect-auto md:flex-1 md:min-h-0 md:p-4"
-            style={{ outline: "4px solid orange" } /* DEBUG */}
-          >
+        <section className="relative order-1 flex flex-col min-h-0 md:order-2 md:flex-1 md:overflow-hidden">
+          <div className="relative flex aspect-square w-full items-center justify-center bg-ink-950 p-2 md:aspect-auto md:flex-1 md:min-h-0 md:overflow-hidden md:p-4">
             <MapViewport
               manifest={manifest}
               mapId={mapId}
@@ -374,7 +368,7 @@ export default function HomePage() {
           />
         </section>
         {/* Right aside: match stats. Below filters on mobile, beside map on desktop. */}
-        <aside className="order-3 flex w-full shrink-0 flex-col border-t border-ink-700 bg-ink-900 lg:w-[320px] lg:border-l lg:border-t-0 lg:overflow-hidden">
+        <aside className="order-3 flex w-full shrink-0 flex-col border-t border-ink-700 bg-ink-900 md:min-h-0 md:overflow-hidden lg:w-[320px] lg:border-l lg:border-t-0">
           <div className="lg:flex-1 lg:overflow-auto">
             <StatsPanel match={match} extraTop={<AutoInsights match={match} />} />
           </div>
