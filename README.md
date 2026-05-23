@@ -6,7 +6,7 @@
 
 | | |
 | --- | --- |
-| **Live URL** | _After deploying to Vercel, paste the URL here_ |
+| **Live URL** | https://lila-games-assignment-jet.vercel.app/ |
 | **Stack** | Next.js 15 (App Router, static export) · TypeScript · Tailwind CSS · HTML5 Canvas · Python 3 (`pyarrow` / `pandas`) for ETL |
 | **Hosting target** | Vercel (or any static host — the build is `next export`) |
 
