@@ -109,6 +109,18 @@ export function MapViewport(p: Props) {
     if (!c || !mapCfg) return;
     const ctx = c.getContext("2d");
     if (!ctx) return;
+    // DEBUG: log the full parent chain so we can see which ancestor is the
+    // wrong size.
+    const chain: string[] = [];
+    let el: HTMLElement | null = c;
+    let depth = 0;
+    while (el && depth < 12) {
+      chain.push(`[${depth}] ${el.tagName.toLowerCase()}.${el.className.split(" ").slice(0, 3).join(".")}: ${el.offsetWidth}x${el.offsetHeight}`);
+      el = el.parentElement;
+      depth++;
+    }
+    // eslint-disable-next-line no-console
+    console.log("[lila/debug] parent chain:\n" + chain.join("\n"));
     ctx.clearRect(0, 0, RENDER_SIZE, RENDER_SIZE);
 
     if (imgRef.current && imgReady) {
@@ -410,14 +422,23 @@ export function MapViewport(p: Props) {
     <div
       ref={containerRef}
       className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg map-vignette"
+      style={{ outline: "4px solid cyan" } /* DEBUG */}
     >
       <div className="checker-bg absolute inset-0 opacity-30" />
-      <div className="relative" style={{ width: "min(100%, 92vh)", aspectRatio: "1 / 1" }}>
+      <div
+        className="relative"
+        style={{
+          width: "min(100%, 92vh)",
+          aspectRatio: "1 / 1",
+          outline: "4px solid magenta", // DEBUG
+        }}
+      >
         <canvas
           ref={canvasRef}
           width={RENDER_SIZE}
           height={RENDER_SIZE}
           className="absolute inset-0 h-full w-full rounded-md shadow-2xl"
+          style={{ background: "lime" }} // DEBUG
           onMouseMove={onMove}
           onMouseLeave={() => setHover(null)}
         />

@@ -336,7 +336,10 @@ export default function HomePage() {
         </aside>
         {/* Center: map + timeline. Square on mobile, fills remaining space on desktop. */}
         <section className="relative order-1 flex flex-col min-h-0 md:order-2 md:flex-1">
-          <div className="relative flex aspect-square w-full items-center justify-center bg-ink-950 p-2 md:aspect-auto md:flex-1 md:min-h-0 md:p-4">
+          <div
+            className="relative flex aspect-square w-full items-center justify-center bg-ink-950 p-2 md:aspect-auto md:flex-1 md:min-h-0 md:p-4"
+            style={{ outline: "4px solid orange" } /* DEBUG */}
+          >
             <MapViewport
               manifest={manifest}
               mapId={mapId}
