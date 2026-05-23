@@ -72,8 +72,18 @@ export default function HomePage() {
   // Load manifest once.
   useEffect(() => {
     loadManifest()
-      .then(setManifest)
+      .then((m) => {
+        // If the URL deep-linked a match but didn't specify the map (the
+        // default AmbroseValley would otherwise discard the match on
+        // Lockdown / GrandRift), infer the map from the match itself.
+        if (initial.match && initial.map == null) {
+          const hit = m.matches.find((r) => r.matchId === initial.match);
+          if (hit && hit.mapId !== mapId) setMapId(hit.mapId);
+        }
+        setManifest(m);
+      })
       .catch((e) => setError(String(e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Filter the manifest's match list by map + date.
